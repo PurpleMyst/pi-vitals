@@ -3,7 +3,7 @@ import { visibleWidth, truncateToWidth } from "@mariozechner/pi-tui";
 
 import type { SegmentContext, StatusLineSegmentId } from "./types.js";
 import { renderSegment } from "./segments.js";
-import { getGitStatus, invalidateGitStatus, invalidateGitBranch } from "./git-status.js";
+import { getGitStatus, invalidateGitStatus, invalidateGitBranch, invalidateGitRoot, setOnFetchComplete } from "./git-status.js";
 import { getEffectiveConfig, clearUserConfigCache, loadUserConfig } from "./config.js";
 import { getIcons } from "./icons.js";
 import { getDefaultColors } from "./theme.js";
@@ -102,7 +102,6 @@ export default function powerlineFooter(pi: ExtensionAPI) {
 
   // Track session start
   pi.on("session_start", async (_event, ctx) => {
-    // Clear stale references from previous session
     sessionStartTime = Date.now();
     currentCtx = ctx;
     
@@ -121,6 +120,7 @@ export default function powerlineFooter(pi: ExtensionAPI) {
     footerDataRef = null;
     tuiRef = null;
     getThinkingLevelFn = null;
+    setOnFetchComplete(null);
   });
 
   // Invalidate git status on file changes
@@ -130,6 +130,12 @@ export default function powerlineFooter(pi: ExtensionAPI) {
     }
     if (event.toolName === "bash" && event.input?.command) {
       const cmd = String(event.input.command);
+      // Directory changes can move us into/out of a git repo
+      if (/\b(cd|pushd|popd)\b/.test(cmd)) {
+        invalidateGitRoot();
+        invalidateGitBranch();
+        invalidateGitStatus();
+      }
       // Check for git commands that might change branch
       const gitBranchPatterns = [
         /\bgit\s+(checkout|switch|branch\s+-[dDmM]|merge|rebase|pull|reset|worktree)/,
@@ -138,6 +144,7 @@ export default function powerlineFooter(pi: ExtensionAPI) {
       if (gitBranchPatterns.some(p => p.test(cmd))) {
         invalidateGitStatus();
         invalidateGitBranch();
+        invalidateGitRoot();
         setTimeout(() => {
           if (tuiRef && currentCtx) tuiRef.requestRender();
         }, 100);
@@ -147,6 +154,18 @@ export default function powerlineFooter(pi: ExtensionAPI) {
 
   // Also catch user escape commands (! prefix)
   pi.on("user_bash", async (event, _ctx) => {
+    const cmd = event.command;
+    // Directory changes can move us into/out of a git repo
+    if (/\b(cd|pushd|popd)\b/.test(cmd)) {
+      invalidateGitRoot();
+      invalidateGitBranch();
+      invalidateGitStatus();
+      const safeRender = () => {
+        if (tuiRef && currentCtx) tuiRef.requestRender();
+      };
+      setTimeout(safeRender, 100);
+      return;
+    }
     const gitBranchPatterns = [
       /\bgit\s+(checkout|switch|branch\s+-[dDmM]|merge|rebase|pull|reset|worktree)/,
       /\bgit\s+stash\s+(pop|apply)/,
@@ -154,6 +173,7 @@ export default function powerlineFooter(pi: ExtensionAPI) {
     if (gitBranchPatterns.some(p => p.test(event.command))) {
       invalidateGitStatus();
       invalidateGitBranch();
+      invalidateGitRoot();
       const safeRender = () => {
         if (tuiRef && currentCtx) tuiRef.requestRender();
       };
@@ -254,6 +274,7 @@ export default function powerlineFooter(pi: ExtensionAPI) {
       usingSubscription,
       sessionStartTime,
       git: gitStatus,
+      extensionStatuses: footerDataRef?.getExtensionStatuses() ?? new Map(),
       options: effectiveConfig.segmentOptions ?? {},
       width,
       theme,
@@ -267,14 +288,22 @@ export default function powerlineFooter(pi: ExtensionAPI) {
       footerDataRef = footerData;
       tuiRef = tui;
       
+      // Register callback so async git fetches trigger a re-render.
+      // Must be set INSIDE the factory, after setFooter has disposed
+      // the old footer. If set before, the old dispose wipes out the callback.
+      setOnFetchComplete(() => {
+        if (tuiRef) tuiRef.requestRender();
+      });
+
       // Subscribe to branch changes for re-render
       const unsub = footerData.onBranchChange(() => tui.requestRender());
 
       return {
-        dispose: unsub,
+        dispose: () => {
+          unsub();
+        },
         invalidate() {},
         render(width: number): string[] {
-          // Guard against stale context after session replacement or exit
           if (!currentCtx || !currentCtx.sessionManager?.getSessionId) {
             return [];
           }

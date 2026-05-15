@@ -39,6 +39,7 @@ export type StatusLineSegmentId =
   | "cache_read"
   | "cache_write"
   | "thinking"
+  | "ext_status"
   | "separator"
   | `text:${string}`;
 
@@ -62,6 +63,8 @@ export interface StatusLineSegmentOptions {
 // Git status data
 export interface GitStatus {
   branch: string | null;
+  worktreeDir: string | null; // The working tree directory (for computing relative paths)
+  repoName: string | null;    // Display name of the repo (e.g., "plexus")
   staged: number;
   unstaged: number;
   untracked: number;
@@ -88,6 +91,7 @@ export interface SegmentContext {
   usingSubscription: boolean;
   sessionStartTime: number;
   git: GitStatus;
+  extensionStatuses: ReadonlyMap<string, string>;
   options: StatusLineSegmentOptions;
   width: number;
   theme: Theme;

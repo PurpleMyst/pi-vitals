@@ -10,6 +10,7 @@ const DEFAULT_LEFT_SEGMENTS: StatusLineSegmentId[] = [
   "separator",
   "model",
   "thinking",
+  "ext_status",
   "separator",
   "path",
   "git",

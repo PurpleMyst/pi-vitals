@@ -1,4 +1,4 @@
-import { basename } from "node:path";
+import { basename, relative } from "node:path";
 import type { RenderedSegment, SegmentContext } from "./types.js";
 import { fg, rainbow, applyColor } from "./theme.js";
 import { hasNerdFonts } from "./icons.js";
@@ -91,8 +91,22 @@ const pathSegment = {
 
     let pwd = process.cwd();
     const home = process.env.HOME || process.env.USERPROFILE;
+    const gitWorktreeDir = ctx.git.worktreeDir;
+    const gitRepoName = ctx.git.repoName;
 
-    if (mode === "basename") {
+    // When inside a git repo, show [repo_name]/relative/path with repo icon
+    // This avoids repetition where the worktree folder name == branch name
+    let useRepoIcon = false;
+    if (gitWorktreeDir && gitRepoName && mode === "basename") {
+      const relPath = relative(gitWorktreeDir, pwd);
+      // If cwd is the worktree root itself, just show the repo name
+      if (!relPath || relPath === ".") {
+        pwd = `[${gitRepoName}]`;
+      } else {
+        pwd = `[${gitRepoName}]/${relPath}`;
+      }
+      useRepoIcon = true;
+    } else if (mode === "basename") {
       pwd = basename(pwd) || pwd;
     } else {
       if (home && pwd.startsWith(home)) {
@@ -109,7 +123,8 @@ const pathSegment = {
       }
     }
 
-    const content = withIcon(ctx.icons.folder, pwd);
+    const icon = useRepoIcon ? ctx.icons.repo : ctx.icons.folder;
+    const content = withIcon(icon, pwd);
     return { content: color(ctx, "path", content), visible: true };
   },
 };
@@ -118,9 +133,9 @@ const gitSegment = {
   id: "git" as const,
   render(ctx: SegmentContext): RenderedSegment {
     const opts = ctx.options.git ?? {};
-    const { branch, staged, unstaged, untracked } = ctx.git;
+    const { branch, worktreeDir, staged, unstaged, untracked } = ctx.git;
     
-    if (!branch && staged === 0 && unstaged === 0 && untracked === 0) {
+    if (!branch && !worktreeDir && staged === 0 && unstaged === 0 && untracked === 0) {
       return { content: "", visible: false };
     }
 
@@ -293,6 +308,22 @@ const cacheWriteSegment = {
   },
 };
 
+const extStatusSegment = {
+  id: "ext_status" as const,
+  render(ctx: SegmentContext): RenderedSegment {
+    const statuses = ctx.extensionStatuses;
+    if (!statuses || statuses.size === 0) {
+      return { content: "", visible: false };
+    }
+    // Render all extension statuses joined with spaces
+    const parts = Array.from(statuses.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, text]) => text);
+    const content = parts.join(" ");
+    return { content, visible: content.length > 0 };
+  },
+};
+
 const separatorSegment = {
   id: "separator" as const,
   render(ctx: SegmentContext): RenderedSegment {
@@ -310,6 +341,7 @@ const SEGMENTS = {
   path: pathSegment,
   git: gitSegment,
   thinking: thinkingSegment,
+  ext_status: extStatusSegment,
   token_in: tokenInSegment,
   token_out: tokenOutSegment,
   token_total: tokenTotalSegment,

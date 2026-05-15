@@ -1,26 +1,105 @@
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import type { GitStatus } from "./types.js";
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Synchronous git repo detection (no subprocesses, no timeouts)
+// Based on pi's FooterDataProvider: read .git files/dirs directly
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface GitRepoInfo {
+  /** The directory containing .git (worktree dir for worktrees, repo root for regular repos) */
+  worktreeDir: string;
+  /** The main repo's .git directory (shared across worktrees) */
+  commonGitDir: string;
+  /** Path to the HEAD file for this worktree */
+  headPath: string;
+  /** The main repo root directory (parent of .git for regular repos, derived from commonGitDir for worktrees) */
+  mainRepoRoot: string;
+}
+
+/**
+ * Walk up from cwd to find git metadata.
+ * Handles both regular git repos and worktrees.
+ * Returns null if not in a git repo.
+ */
+function findGitRepoInfo(cwd: string): GitRepoInfo | null {
+  let dir = cwd;
+  while (true) {
+    const gitPath = join(dir, ".git");
+    if (existsSync(gitPath)) {
+      try {
+        const stat = statSync(gitPath);
+        if (stat.isFile()) {
+          // Worktree: .git is a file pointing to the git directory
+          const content = readFileSync(gitPath, "utf8").trim();
+          if (content.startsWith("gitdir: ")) {
+            const gitDir = resolve(dir, content.slice(8).trim());
+            const headPath = join(gitDir, "HEAD");
+            if (!existsSync(headPath)) return null;
+            const commonDirPath = join(gitDir, "commondir");
+            const commonGitDir = existsSync(commonDirPath)
+              ? resolve(gitDir, readFileSync(commonDirPath, "utf8").trim())
+              : gitDir;
+            // Main repo root is the parent of the common .git directory
+            const mainRepoRoot = dirname(commonGitDir);
+            return { worktreeDir: dir, commonGitDir, headPath, mainRepoRoot };
+          }
+        } else if (stat.isDirectory()) {
+          // Regular repo: .git is a directory
+          const headPath = join(gitPath, "HEAD");
+          if (!existsSync(headPath)) return null;
+          return { worktreeDir: dir, commonGitDir: gitPath, headPath, mainRepoRoot: dir };
+        }
+      } catch {
+        return null;
+      }
+    }
+    const parent = dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+}
+
+/**
+ * Read the current branch from the HEAD file synchronously.
+ * Returns the branch name, "detached", or null if not readable.
+ */
+function readBranchFromHead(headPath: string): string | null {
+  try {
+    const content = readFileSync(headPath, "utf8").trim();
+    if (content.startsWith("ref: refs/heads/")) {
+      return content.slice(16);
+    }
+    return "detached";
+  } catch {
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Git status cache — fetch once, re-fetch only on explicit invalidation
+// ═══════════════════════════════════════════════════════════════════════════
 
 interface CachedGitStatus {
   staged: number;
   unstaged: number;
   untracked: number;
-  timestamp: number;
 }
 
-interface CachedBranch {
-  branch: string | null;
-  timestamp: number;
+// Callback to trigger a re-render after async fetches complete
+let onFetchComplete: (() => void) | null = null;
+
+export function setOnFetchComplete(cb: (() => void) | null): void {
+  onFetchComplete = cb;
 }
 
-const CACHE_TTL_MS = 1000;
-const BRANCH_TTL_MS = 500;
 let cachedStatus: CachedGitStatus | null = null;
-let cachedBranch: CachedBranch | null = null;
 let pendingFetch: Promise<void> | null = null;
-let pendingBranchFetch: Promise<void> | null = null;
-let invalidationCounter = 0;
-let branchInvalidationCounter = 0;
+
+// Cached repo info (synchronous, no TTL — only changes on cd)
+let cachedRepoInfo: GitRepoInfo | null | undefined = undefined;
 
 function parseGitStatusOutput(output: string): { staged: number; unstaged: number; untracked: number } {
   let staged = 0;
@@ -49,7 +128,7 @@ function parseGitStatusOutput(output: string): { staged: number; unstaged: numbe
   return { staged, unstaged, untracked };
 }
 
-function runGit(args: string[], timeoutMs = 200): Promise<string | null> {
+function runGit(args: string[], timeoutMs = 2000): Promise<string | null> {
   return new Promise((resolve) => {
     const proc = spawn("git", args, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -84,87 +163,99 @@ function runGit(args: string[], timeoutMs = 200): Promise<string | null> {
   });
 }
 
-async function fetchGitBranch(): Promise<string | null> {
-  const branch = await runGit(["branch", "--show-current"]);
-  if (branch === null) return null;
-  if (branch) return branch;
-
-  const sha = await runGit(["rev-parse", "--short", "HEAD"]);
-  return sha ? `${sha} (detached)` : "detached";
-}
-
 async function fetchGitStatus(): Promise<{ staged: number; unstaged: number; untracked: number } | null> {
-  const output = await runGit(["status", "--porcelain"], 500);
+  const output = await runGit(["status", "--porcelain"], 2000);
   if (output === null) return null;
   return parseGitStatusOutput(output);
 }
 
+/**
+ * Get the git repo info for the current working directory.
+ * Synchronous, filesystem-based — no git subprocess needed.
+ */
+function getGitRepoInfo(): GitRepoInfo | null {
+  if (cachedRepoInfo !== undefined) return cachedRepoInfo;
+  cachedRepoInfo = findGitRepoInfo(process.cwd());
+  return cachedRepoInfo;
+}
+
+/**
+ * Get the main repo root directory.
+ * For regular repos, same as the worktree dir.
+ * For worktrees, the parent repo that contains .git.
+ */
+export function getGitRoot(): string | null {
+  const info = getGitRepoInfo();
+  if (!info) return null;
+  return info.worktreeDir;
+}
+
+/**
+ * Get the display name of the repo.
+ * For regular repos: basename of the repo directory.
+ * For worktrees: basename of the common git directory (the bare repo name).
+ */
+export function getGitRepoName(): string | null {
+  const info = getGitRepoInfo();
+  if (!info) return null;
+  // Regular repo: worktreeDir == mainRepoRoot, name is the directory name
+  if (info.worktreeDir === info.mainRepoRoot) {
+    return basename(info.worktreeDir);
+  }
+  // Worktree: name comes from the bare repo directory
+  return basename(info.commonGitDir);
+}
+
+/**
+ * Get the current branch by reading HEAD file directly.
+ * Falls back to providerBranch if not in a git repo.
+ */
 export function getCurrentBranch(providerBranch: string | null): string | null {
-  const now = Date.now();
-
-  if (cachedBranch && now - cachedBranch.timestamp < BRANCH_TTL_MS) {
-    return cachedBranch.branch;
-  }
-
-  if (!pendingBranchFetch) {
-    const fetchId = branchInvalidationCounter;
-    pendingBranchFetch = fetchGitBranch().then((result) => {
-      if (fetchId === branchInvalidationCounter) {
-        cachedBranch = {
-          branch: result,
-          timestamp: Date.now(),
-        };
-      }
-      pendingBranchFetch = null;
-    });
-  }
-
-  return cachedBranch ? cachedBranch.branch : providerBranch;
+  const info = getGitRepoInfo();
+  if (!info) return providerBranch;
+  return readBranchFromHead(info.headPath) ?? providerBranch;
 }
 
 export function getGitStatus(providerBranch: string | null): GitStatus {
-  const now = Date.now();
   const branch = getCurrentBranch(providerBranch);
+  const worktreeDir = getGitRoot();
+  const repoName = getGitRepoName();
 
-  if (cachedStatus && now - cachedStatus.timestamp < CACHE_TTL_MS) {
-    return { 
-      branch, 
+  // If we have cached status, return it — no TTL expiry
+  if (cachedStatus) {
+    return {
+      branch,
+      worktreeDir,
+      repoName,
       staged: cachedStatus.staged,
       unstaged: cachedStatus.unstaged,
       untracked: cachedStatus.untracked,
     };
   }
 
+  // Start a fetch if one isn't already in progress
   if (!pendingFetch) {
-    const fetchId = invalidationCounter;
     pendingFetch = fetchGitStatus().then((result) => {
-      if (fetchId === invalidationCounter) {
-        cachedStatus = result
-          ? { staged: result.staged, unstaged: result.unstaged, untracked: result.untracked, timestamp: Date.now() }
-          : { staged: 0, unstaged: 0, untracked: 0, timestamp: Date.now() };
-      }
+      cachedStatus = result
+        ? { staged: result.staged, unstaged: result.unstaged, untracked: result.untracked }
+        : { staged: 0, unstaged: 0, untracked: 0 };
       pendingFetch = null;
+      onFetchComplete?.();
     });
   }
 
-  if (cachedStatus) {
-    return { 
-      branch, 
-      staged: cachedStatus.staged,
-      unstaged: cachedStatus.unstaged,
-      untracked: cachedStatus.untracked,
-    };
-  }
-
-  return { branch, staged: 0, unstaged: 0, untracked: 0 };
+  // While fetching, return zeros (branch/root are already available synchronously)
+  return { branch, worktreeDir, repoName, staged: 0, unstaged: 0, untracked: 0 };
 }
 
 export function invalidateGitStatus(): void {
   cachedStatus = null;
-  invalidationCounter++;
 }
 
 export function invalidateGitBranch(): void {
-  cachedBranch = null;
-  branchInvalidationCounter++;
+  // Branch is read synchronously from HEAD file — no cache to invalidate
+}
+
+export function invalidateGitRoot(): void {
+  cachedRepoInfo = undefined;
 }

@@ -2,6 +2,7 @@ export interface IconSet {
   pi: string;
   model: string;
   folder: string;
+  repo: string;
   branch: string;
   git: string;
   tokens: string;
@@ -22,6 +23,7 @@ export const NERD_ICONS: IconSet = {
   pi: "\uE22C",         // nf-oct-pi
   model: "\uEC19",      // nf-md-chip
   folder: "\uF115",     // nf-fa-folder_open
+  repo: "\uEA63",       // nf-cod-repo_forked
   branch: "\uF126",     // nf-fa-code_fork
   git: "\uF1D3",        // nf-fa-git
   tokens: "\uE26B",     // nf-seti-html
@@ -42,6 +44,7 @@ export const ASCII_ICONS: IconSet = {
   pi: "π",
   model: "◈",
   folder: "📁",
+  repo: "📦",
   branch: "⎇",
   git: "⎇",
   tokens: "⊛",
