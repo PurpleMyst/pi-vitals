@@ -123,6 +123,17 @@ export default function powerlineFooter(pi: ExtensionAPI) {
     setOnFetchComplete(null);
   });
 
+  // Invalidate git status at the end of every assistant message,
+  // since bash commands or other tools may have changed files on disk
+  pi.on("message_end", async (_event, _ctx) => {
+    invalidateGitStatus();
+  });
+
+  // Also invalidate when the agent finishes (covers edge cases)
+  pi.on("agent_end", async (_event, _ctx) => {
+    invalidateGitStatus();
+  });
+
   // Invalidate git status on file changes
   pi.on("tool_result", async (event, _ctx) => {
     if (event.toolName === "write" || event.toolName === "edit") {
