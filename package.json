@@ -1,6 +1,6 @@
 {
   "name": "pi-vitals",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A customizable powerline-style footer for pi",
   "type": "module",
   "main": "index.ts",
@@ -27,7 +27,9 @@
     "pi-coding-agent"
   ],
   "pi": {
-    "extensions": ["./index.ts"]
+    "extensions": [
+      "./index.ts"
+    ]
   },
   "author": "Matt Cowger",
   "license": "MIT"
