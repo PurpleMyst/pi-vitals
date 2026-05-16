@@ -96,6 +96,7 @@ export function setOnFetchComplete(cb: (() => void) | null): void {
 }
 
 let cachedStatus: CachedGitStatus | null = null;
+let staleStatus: CachedGitStatus | null = null; // Previous values kept visible during refetch
 let pendingFetch: Promise<void> | null = null;
 
 // Cached repo info (synchronous, no TTL — only changes on cd)
@@ -233,22 +234,37 @@ export function getGitStatus(providerBranch: string | null): GitStatus {
     };
   }
 
-  // Start a fetch if one isn't already in progress
+  // No current cache — start a fetch if one isn't already in progress
   if (!pendingFetch) {
     pendingFetch = fetchGitStatus().then((result) => {
-      cachedStatus = result
-        ? { staged: result.staged, unstaged: result.unstaged, untracked: result.untracked }
-        : { staged: 0, unstaged: 0, untracked: 0 };
+      if (result) {
+        cachedStatus = { staged: result.staged, unstaged: result.unstaged, untracked: result.untracked };
+      }
+      // If fetch failed, do NOT cache zeros — leave cachedStatus null so we retry
+      // on the next render, and keep staleStatus available as a fallback.
+      staleStatus = null; // New data available (or we're retrying), clear stale
       pendingFetch = null;
       onFetchComplete?.();
     });
   }
 
-  // While fetching, return zeros (branch/root are already available synchronously)
-  return { branch, worktreeDir, repoName, staged: 0, unstaged: 0, untracked: 0 };
+  // While fetching, return stale values (from before invalidation) so the UI
+  // doesn't flash to zero. Fall back to zeros only on the very first fetch
+  // when no stale data exists yet.
+  const fallback = staleStatus ?? { staged: 0, unstaged: 0, untracked: 0 };
+  return { branch, worktreeDir, repoName, staged: fallback.staged, unstaged: fallback.unstaged, untracked: fallback.untracked };
 }
 
 export function invalidateGitStatus(): void {
+  // Keep the old values visible as stale data until the async refetch completes.
+  // Only promote real data (with at least one non-zero value) to stale —
+  // all-zeros from a failed fetch would poison staleStatus and defeat the guard.
+  if (cachedStatus && (cachedStatus.staged > 0 || cachedStatus.unstaged > 0 || cachedStatus.untracked > 0)) {
+    staleStatus = cachedStatus;
+  } else if (cachedStatus) {
+    // Cached was zeros (likely from a failed fetch) — don't poison staleStatus.
+    // Keep whatever staleStatus already has; it's better than zeros.
+  }
   cachedStatus = null;
 }
 
