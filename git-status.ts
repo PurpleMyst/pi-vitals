@@ -95,6 +95,11 @@ export function setOnFetchComplete(cb: (() => void) | null): void {
   onFetchComplete = cb;
 }
 
+// After invalidation, we debounce the fetch briefly so that multiple
+// invalidation events in quick succession (tool_result + message_end + agent_end)
+// result in a single git status call instead of N overlapping processes.
+const FETCH_DEBOUNCE_MS = 150;
+let fetchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let cachedStatus: CachedGitStatus | null = null;
 let staleStatus: CachedGitStatus | null = null; // Previous values kept visible during refetch
 let pendingFetch: Promise<void> | null = null;
@@ -133,6 +138,7 @@ function runGit(args: string[], timeoutMs = 2000): Promise<string | null> {
   return new Promise((resolve) => {
     const proc = spawn("git", args, {
       stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
     });
 
     let stdout = "";
@@ -165,7 +171,7 @@ function runGit(args: string[], timeoutMs = 2000): Promise<string | null> {
 }
 
 async function fetchGitStatus(): Promise<{ staged: number; unstaged: number; untracked: number } | null> {
-  const output = await runGit(["status", "--porcelain"], 2000);
+  const output = await runGit(["status", "--no-optional-locks", "--porcelain"], 2000);
   if (output === null) return null;
   return parseGitStatusOutput(output);
 }
@@ -235,17 +241,21 @@ export function getGitStatus(providerBranch: string | null): GitStatus {
   }
 
   // No current cache — start a fetch if one isn't already in progress
-  if (!pendingFetch) {
-    pendingFetch = fetchGitStatus().then((result) => {
-      if (result) {
-        cachedStatus = { staged: result.staged, unstaged: result.unstaged, untracked: result.untracked };
-      }
-      // If fetch failed, do NOT cache zeros — leave cachedStatus null so we retry
-      // on the next render, and keep staleStatus available as a fallback.
-      staleStatus = null; // New data available (or we're retrying), clear stale
-      pendingFetch = null;
-      onFetchComplete?.();
-    });
+  if (!pendingFetch && !fetchDebounceTimer) {
+    fetchDebounceTimer = setTimeout(() => {
+      fetchDebounceTimer = null;
+      if (pendingFetch) return; // shouldn't happen, but guard
+      pendingFetch = fetchGitStatus().then((result) => {
+        if (result) {
+          cachedStatus = { staged: result.staged, unstaged: result.unstaged, untracked: result.untracked };
+        }
+        // If fetch failed, do NOT cache zeros — leave cachedStatus null so we retry
+        // on the next render, and keep staleStatus available as a fallback.
+        staleStatus = null; // New data available (or we're retrying), clear stale
+        pendingFetch = null;
+        onFetchComplete?.();
+      });
+    }, FETCH_DEBOUNCE_MS);
   }
 
   // While fetching, return stale values (from before invalidation) so the UI
