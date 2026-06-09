@@ -19,7 +19,8 @@ const DEFAULT_LEFT_SEGMENTS: StatusLineSegmentId[] = [
   "token_in",
   "token_out",
   "cache_read",
-  "cache_write"
+  "cache_write",
+  "cache_hit"
 ];
 
 const DEFAULT_RIGHT_SEGMENTS: StatusLineSegmentId[] = [

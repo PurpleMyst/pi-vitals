@@ -1,4 +1,4 @@
-import type { Theme, ThemeColor } from "@mariozechner/pi-coding-agent";
+import type { Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
 import type { IconSet } from "./icons.js";
 
 // Theme color - either a pi theme color name or a custom hex color
@@ -38,6 +38,7 @@ export type StatusLineSegmentId =
   | "context_total"
   | "cache_read"
   | "cache_write"
+  | "cache_hit"
   | "thinking"
   | "ext_status"
   | "separator"
@@ -76,6 +77,7 @@ export interface UsageStats {
   output: number;
   cacheRead: number;
   cacheWrite: number;
+  latestCacheHitRate?: number;
   cost: number;
 }
 

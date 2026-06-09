@@ -1,5 +1,5 @@
 import { basename, relative } from "node:path";
-import type { RenderedSegment, SegmentContext } from "./types.js";
+import type { RenderedSegment, SegmentContext, StatusLineSegmentId } from "./types.js";
 import { fg, rainbow, applyColor } from "./theme.js";
 import { hasNerdFonts } from "./icons.js";
 
@@ -308,6 +308,20 @@ const cacheWriteSegment = {
   },
 };
 
+const cacheHitSegment = {
+  id: "cache_hit" as const,
+  render(ctx: SegmentContext): RenderedSegment {
+    const { cacheRead, cacheWrite, latestCacheHitRate } = ctx.usageStats;
+
+    if ((cacheRead <= 0 && cacheWrite <= 0) || latestCacheHitRate === undefined) {
+      return { content: "", visible: false };
+    }
+
+    const content = `CH${latestCacheHitRate.toFixed(1)}%`;
+    return { content: color(ctx, "tokens", content), visible: true };
+  },
+};
+
 const extStatusSegment = {
   id: "ext_status" as const,
   render(ctx: SegmentContext): RenderedSegment {
@@ -350,6 +364,7 @@ const SEGMENTS = {
   context_total: contextTotalSegment,
   cache_read: cacheReadSegment,
   cache_write: cacheWriteSegment,
+  cache_hit: cacheHitSegment,
   separator: separatorSegment,
 };
 

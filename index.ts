@@ -1,5 +1,5 @@
-import type { ExtensionAPI, ReadonlyFooterDataProvider, Theme, AssistantMessage } from "@mariozechner/pi-coding-agent";
-import { visibleWidth, truncateToWidth } from "@mariozechner/pi-tui";
+import type { ExtensionAPI, ReadonlyFooterDataProvider, SessionEntry, Theme } from "@earendil-works/pi-coding-agent";
+import { visibleWidth, truncateToWidth } from "@earendil-works/pi-tui";
 
 import type { SegmentContext, StatusLineSegmentId } from "./types.js";
 import { renderSegment } from "./segments.js";
@@ -7,6 +7,7 @@ import { getGitStatus, invalidateGitStatus, invalidateGitBranch, invalidateGitRo
 import { getEffectiveConfig, clearUserConfigCache, loadUserConfig } from "./config.js";
 import { getIcons } from "./icons.js";
 import { getDefaultColors } from "./theme.js";
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Status Line Builder
@@ -97,7 +98,6 @@ export default function powerlineFooter(pi: ExtensionAPI) {
   let sessionStartTime = Date.now();
   let currentCtx: any = null;
   let footerDataRef: ReadonlyFooterDataProvider | null = null;
-  let getThinkingLevelFn: (() => string) | null = null;
   let tuiRef: any = null;
 
   // Track session start
@@ -105,9 +105,6 @@ export default function powerlineFooter(pi: ExtensionAPI) {
     sessionStartTime = Date.now();
     currentCtx = ctx;
     
-    if (typeof ctx.getThinkingLevel === 'function') {
-      getThinkingLevelFn = () => ctx.getThinkingLevel();
-    }
     
     if (ctx.hasUI) {
       setupFooter(ctx);
@@ -119,7 +116,6 @@ export default function powerlineFooter(pi: ExtensionAPI) {
     currentCtx = null;
     footerDataRef = null;
     tuiRef = null;
-    getThinkingLevelFn = null;
     setOnFetchComplete(null);
   });
 
@@ -235,16 +231,17 @@ export default function powerlineFooter(pi: ExtensionAPI) {
 
     // Build usage stats from session
     let input = 0, output = 0, cacheRead = 0, cacheWrite = 0, cost = 0;
-    let lastAssistant: AssistantMessage | undefined;
+    let latestCacheHitRate: number | undefined;
+    let contextTokens = 0;
     let thinkingLevelFromSession = "off";
     
-    const sessionEvents = ctx.sessionManager?.getBranch?.() ?? [];
+    const sessionEvents: SessionEntry[] = ctx.sessionManager?.getBranch?.() ?? [];
     for (const e of sessionEvents) {
       if (e.type === "thinking_level_change" && e.thinkingLevel) {
         thinkingLevelFromSession = e.thinkingLevel;
       }
       if (e.type === "message" && e.message.role === "assistant") {
-        const m = e.message as AssistantMessage;
+        const m = e.message;
         if (m.stopReason === "error" || m.stopReason === "aborted") {
           continue;
         }
@@ -253,15 +250,15 @@ export default function powerlineFooter(pi: ExtensionAPI) {
         cacheRead += m.usage.cacheRead;
         cacheWrite += m.usage.cacheWrite;
         cost += m.usage.cost.total;
-        lastAssistant = m;
+        contextTokens = m.usage.input + m.usage.output + m.usage.cacheRead + m.usage.cacheWrite;
+        const latestPromptTokens = m.usage.input + m.usage.cacheRead + m.usage.cacheWrite;
+        latestCacheHitRate = latestPromptTokens > 0
+          ? (m.usage.cacheRead / latestPromptTokens) * 100
+          : undefined;
       }
     }
 
     // Calculate context percentage
-    const contextTokens = lastAssistant
-      ? lastAssistant.usage.input + lastAssistant.usage.output +
-        lastAssistant.usage.cacheRead + lastAssistant.usage.cacheWrite
-      : 0;
     const contextWindow = ctx.model?.contextWindow || 0;
     const contextPercent = contextWindow > 0 ? (contextTokens / contextWindow) * 100 : 0;
 
@@ -276,9 +273,9 @@ export default function powerlineFooter(pi: ExtensionAPI) {
 
     return {
       model: ctx.model,
-      thinkingLevel: thinkingLevelFromSession || getThinkingLevelFn?.() || "off",
+      thinkingLevel: thinkingLevelFromSession || "off",
       sessionId: ctx.sessionManager?.getSessionId?.(),
-      usageStats: { input, output, cacheRead, cacheWrite, cost },
+      usageStats: { input, output, cacheRead, cacheWrite, latestCacheHitRate, cost },
       contextPercent,
       contextWindow,
       autoCompactEnabled: ctx.settingsManager?.getCompactionSettings?.()?.enabled ?? true,

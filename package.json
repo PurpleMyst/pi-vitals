@@ -4,7 +4,9 @@
   "description": "A customizable powerline-style footer for pi",
   "type": "module",
   "main": "index.ts",
-  "scripts": {},
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
   "files": [
     "*.ts",
     "*.json",
@@ -32,5 +34,21 @@
     ]
   },
   "author": "Matt Cowger",
-  "license": "MIT"
+  "license": "MIT",
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.79.0",
+    "@earendil-works/pi-tui": "^0.79.0"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.79.0",
+    "@earendil-works/pi-tui": "^0.79.0",
+    "@types/node": "^25.9.2",
+    "typescript": "^6.0.3"
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "@google/genai",
+      "protobufjs"
+    ]
+  }
 }
