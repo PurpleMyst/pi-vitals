@@ -45,7 +45,8 @@ export function applyColor(
   if (isHexColor(color)) {
     return `${hexToAnsi(color)}${text}\x1b[0m`;
   }
-  return theme.fg(color as ThemeColor, text);
+  const themeColor: ThemeColor = color;
+  return theme.fg(themeColor, text);
 }
 
 export function fg(

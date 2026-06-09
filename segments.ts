@@ -1,5 +1,5 @@
 import { basename, relative } from "node:path";
-import type { RenderedSegment, SegmentContext, StatusLineSegmentId } from "./types.js";
+import type { RenderedSegment, SegmentContext, SemanticColor, StatusLineSegmentId } from "./types.js";
 import { fg, rainbow, applyColor } from "./theme.js";
 import { hasNerdFonts } from "./icons.js";
 
@@ -7,8 +7,8 @@ import { hasNerdFonts } from "./icons.js";
 const SEP_DOT = " · ";
 
 // Helper to apply semantic color from context
-function color(ctx: SegmentContext, semantic: string, text: string): string {
-  return fg(ctx.theme, semantic as any, text, ctx.colors);
+function color(ctx: SegmentContext, semantic: SemanticColor, text: string): string {
+  return fg(ctx.theme, semantic, text, ctx.colors);
 }
 
 function withIcon(icon: string, text: string): string {
@@ -349,6 +349,12 @@ const separatorSegment = {
 // Segment Registry
 // ═══════════════════════════════════════════════════════════════════════════
 
+type BuiltInSegmentId = Exclude<StatusLineSegmentId, `text:${string}`>;
+
+type SegmentRenderer = {
+  render(ctx: SegmentContext): RenderedSegment;
+};
+
 const SEGMENTS = {
   pi: piSegment,
   model: modelSegment,
@@ -366,7 +372,11 @@ const SEGMENTS = {
   cache_write: cacheWriteSegment,
   cache_hit: cacheHitSegment,
   separator: separatorSegment,
-};
+} satisfies Record<BuiltInSegmentId, SegmentRenderer>;
+
+function isBuiltInSegmentId(id: StatusLineSegmentId): id is BuiltInSegmentId {
+  return id in SEGMENTS;
+}
 
 export function renderSegment(id: StatusLineSegmentId, ctx: SegmentContext): RenderedSegment {
   // Handle custom text segments: "text:Hello World"
@@ -375,9 +385,10 @@ export function renderSegment(id: StatusLineSegmentId, ctx: SegmentContext): Ren
     return { content: text, visible: text.length > 0 };
   }
 
-  const segment = SEGMENTS[id as keyof typeof SEGMENTS];
-  if (!segment) {
+  if (!isBuiltInSegmentId(id)) {
     return { content: "", visible: false };
   }
+
+  const segment = SEGMENTS[id];
   return segment.render(ctx);
 }

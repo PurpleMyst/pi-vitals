@@ -1,5 +1,5 @@
-import type { ExtensionAPI, ReadonlyFooterDataProvider, SessionEntry, Theme } from "@earendil-works/pi-coding-agent";
-import { visibleWidth, truncateToWidth } from "@earendil-works/pi-tui";
+import type { ExtensionAPI, ExtensionContext, ReadonlyFooterDataProvider, SessionEntry, SettingsManager, Theme } from "@earendil-works/pi-coding-agent";
+import { visibleWidth, truncateToWidth, type TUI } from "@earendil-works/pi-tui";
 
 import type { SegmentContext, StatusLineSegmentId } from "./types.js";
 import { renderSegment } from "./segments.js";
@@ -7,6 +7,10 @@ import { getGitStatus, invalidateGitStatus, invalidateGitBranch, invalidateGitRo
 import { getEffectiveConfig, clearUserConfigCache, loadUserConfig } from "./config.js";
 import { getIcons } from "./icons.js";
 import { getDefaultColors } from "./theme.js";
+
+type FooterExtensionContext = ExtensionContext & {
+  settingsManager?: Pick<SettingsManager, "getCompactionSettings">;
+};
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -96,9 +100,9 @@ function buildFooterContent(
 
 export default function powerlineFooter(pi: ExtensionAPI) {
   let sessionStartTime = Date.now();
-  let currentCtx: any = null;
+  let currentCtx: FooterExtensionContext | null = null;
   let footerDataRef: ReadonlyFooterDataProvider | null = null;
-  let tuiRef: any = null;
+  let tuiRef: TUI | null = null;
 
   // Track session start
   pi.on("session_start", async (_event, ctx) => {
@@ -225,7 +229,7 @@ export default function powerlineFooter(pi: ExtensionAPI) {
     },
   });
 
-  function buildSegmentContext(ctx: any, width: number, theme: Theme): SegmentContext {
+  function buildSegmentContext(ctx: FooterExtensionContext, width: number, theme: Theme): SegmentContext {
     const effectiveConfig = getEffectiveConfig();
     const colors = effectiveConfig.colors ?? getDefaultColors();
 
@@ -291,8 +295,8 @@ export default function powerlineFooter(pi: ExtensionAPI) {
     };
   }
 
-  function setupFooter(ctx: any) {
-    ctx.ui.setFooter((tui: any, theme: Theme, footerData: ReadonlyFooterDataProvider) => {
+  function setupFooter(ctx: FooterExtensionContext) {
+    ctx.ui.setFooter((tui: TUI, theme: Theme, footerData: ReadonlyFooterDataProvider) => {
       footerDataRef = footerData;
       tuiRef = tui;
       
