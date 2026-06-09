@@ -30,8 +30,8 @@ export const NERD_ICONS: IconSet = {
   contextPct: "\uF1C0", // nf-fa-database (was nf-dev-database \uE70F, broken in NF v3)
   contextTotal: "\uF1C0", // nf-fa-database (was nf-dev-database \uE70F, broken in NF v3)
   cost: "\uF155",       // nf-fa-dollar
-  cacheRead: "\uF1C0",  // nf-fa-database
-  cacheWrite: "\uF1C0", // nf-fa-database
+  cacheRead: "\uF00BA",  // nf-md-book
+  cacheWrite: "\uF05DB", // nf-md-book_plus
   input: "\uF090",      // nf-fa-arrow_right_to_bracket
   output: "\uF08B",     // nf-fa-arrow_right_from_bracket
   thinking: "\uEE9C",   // nf-fa-brain
