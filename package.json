@@ -3,13 +3,16 @@
   "version": "1.2.2",
   "description": "A powerline-style footer for pi",
   "type": "module",
-  "main": "index.ts",
+  "main": "dist/extension.js",
+  "packageManager": "pnpm@11.9.0",
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "build": "esbuild src/extension.ts --bundle --platform=node --target=node20 --format=esm --minify --legal-comments=eof --outfile=dist/extension.js --external:@earendil-works/pi-coding-agent --external:@earendil-works/pi-ai --external:@earendil-works/pi-agent-core --external:@earendil-works/pi-tui --external:typebox",
+    "build:debug": "esbuild src/extension.ts --bundle --platform=node --target=node20 --format=esm --sourcemap --outfile=dist/extension.js --external:@earendil-works/pi-coding-agent --external:@earendil-works/pi-ai --external:@earendil-works/pi-agent-core --external:@earendil-works/pi-tui --external:typebox",
+    "typecheck": "tsc --noEmit"
   },
   "files": [
-    "*.ts",
-    "*.json",
+    "dist/",
+    "src/",
     "README.md"
   ],
   "repository": {
@@ -30,7 +33,7 @@
   ],
   "pi": {
     "extensions": [
-      "./index.ts"
+      "./dist/extension.js"
     ]
   },
   "author": "Matt Cowger",
@@ -43,12 +46,8 @@
     "@earendil-works/pi-coding-agent": "^0.79.0",
     "@earendil-works/pi-tui": "^0.79.0",
     "@types/node": "^25.9.2",
+    "esbuild": "^0.27.0",
+    "lefthook": "^1.13.6",
     "typescript": "^6.0.3"
-  },
-  "pnpm": {
-    "ignoredBuiltDependencies": [
-      "@google/genai",
-      "protobufjs"
-    ]
   }
 }

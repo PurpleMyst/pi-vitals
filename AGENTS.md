@@ -6,33 +6,33 @@ Pi Vitals is a powerline-style footer extension for the [pi coding agent](https:
 
 ## Architecture
 
-### Entry Point: `index.ts`
+### Source Entry Point: `src/extension.ts`
 
 Registers the extension with pi's `ExtensionAPI`. Handles lifecycle events (`session_start`, `session_shutdown`, `message_end`, `agent_end`, `tool_result`, `user_bash`) and wires up git status invalidation on relevant events. Contains the `setupFooter()` factory that provides a `render()` callback to pi's TUI layer.
 
-### Segment Rendering: `segments.ts`
+### Segment Rendering: `src/segments.ts`
 
 Each piece of footer content is a "segment" with an `id` and a `render()` function. Segments receive a `SegmentContext` and return a `RenderedSegment`. The segment registry maps IDs to implementations. Custom text segments (`text:Hello`) are handled inline.
 
-### Git Status: `git-status.ts`
+### Git Status: `src/git-status.ts`
 
 Provides synchronous repo detection (walking up from `cwd` to find `.git`) and branch reading (from the `HEAD` file). Git file status (staged/unstaged/untracked) is fetched asynchronously via `git status --porcelain` and cached. A `staleStatus` mechanism keeps previous values visible during refetches (see **Known Pitfalls** below).
 
-### Configuration: `config.ts`
+### Configuration: `src/config.ts`
 
 Defines the built-in segment layout and segment options. There is no runtime config-file handling.
 
-### Theming & Icons: `theme.ts`, `icons.ts`
+### Theming & Icons: `src/theme.ts`, `src/icons.ts`
 
 `theme.ts` maps semantic color names (e.g., `gitDirty`, `contextWarn`) to pi theme colors or hex values. `icons.ts` provides Nerd Font icons.
 
-### Types: `types.ts`
+### Types: `src/types.ts`
 
 Shared TypeScript interfaces: `GitStatus`, `SegmentContext`, `UsageStats`, `RenderedSegment`, etc.
 
 ## Key Design Decisions
 
-- **No build step**: The extension runs TypeScript directly via pi's extension loader. No compilation needed.
+- **Committed bundled dist**: Pi loads `dist/extension.js`, built from `src/extension.ts` with esbuild. Source remains TypeScript, but runtime does not rely on Pi loading TypeScript through `jiti`.
 - **Synchronous-first for repo/branch**: Repo root detection and branch reading are purely filesystem-based (reading `.git` and `HEAD` files). No subprocesses, no timeouts, instant results.
 - **Async-only for file status**: `git status --porcelain` requires a subprocess. It runs asynchronously and triggers a re-render via `onFetchComplete` → `tuiRef.requestRender()`.
 - **Stale-while-revalidate for git status**: When the cache is invalidated (e.g., on `tool_result`), previous values are kept visible until the new async fetch completes. This avoids visual flicker — see the pitfall below.

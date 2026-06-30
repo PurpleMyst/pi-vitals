@@ -31,7 +31,7 @@ Or copy the extension files to your pi extensions directory manually:
 cp -r . ~/.pi/agent/extensions/pi-vitals
 
 # Or use directly for testing
-pi -e ./index.ts
+pi -e ./dist/extension.js
 ```
 
 ## Configuration
