@@ -1,7 +1,6 @@
 import { basename, relative } from "node:path";
 import type { RenderedSegment, SegmentContext, SemanticColor, StatusLineSegmentId } from "./types.js";
 import { fg, rainbow, applyColor } from "./theme.js";
-import { hasNerdFonts } from "./icons.js";
 
 // Separator between model name and thinking level
 const SEP_DOT = " · ";
@@ -25,19 +24,12 @@ function formatTokens(n: number): string {
 
 // Thinking level display text
 function getThinkingText(level: string): string | undefined {
-  const isNerd = hasNerdFonts();
-  const THINKING_TEXT: Record<string, string> = isNerd ? {
+  const THINKING_TEXT: Record<string, string> = {
     minimal: "\u{F0E7} min",
     low: "\u{F10C} low",
     medium: "\u{F192} med",
     high: "\u{F111} high",
     xhigh: "\u{F06D} xhi",
-  } : {
-    minimal: "[min]",
-    low: "[low]",
-    medium: "[med]",
-    high: "[high]",
-    xhigh: "[xhi]",
   };
   return THINKING_TEXT[level];
 }

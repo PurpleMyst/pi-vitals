@@ -1,7 +1,7 @@
 {
   "name": "pi-vitals",
   "version": "1.2.2",
-  "description": "A customizable powerline-style footer for pi",
+  "description": "A powerline-style footer for pi",
   "type": "module",
   "main": "index.ts",
   "scripts": {

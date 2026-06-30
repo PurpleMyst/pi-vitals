@@ -1,19 +1,19 @@
 # Pi Vitals
 
-A customizable powerline-style footer for the pi coding agent. This extension provides a rich, informative status bar at the bottom of the terminal showing model info, git status, token usage, and more.
+A powerline-style footer for the pi coding agent. This extension provides a rich, informative status bar at the bottom of the terminal showing model info, git status, token usage, and more.
 
 <img width="1014" height="45" alt="Screenshot 2026-02-15 at 4 44 54 PM" src="https://github.com/user-attachments/assets/278fb369-f3cf-47b9-9a6b-1e49c32ba3c9.png" />
 
 ## Features
 
-- **Customizable segments**: Choose which info to display on the left and right sides
+- **Fixed built-in layout**: Keeps code surface small for personal use
 - **Smart git paths**: Shows `[repo_name]/relative/path` inside git repos, with correct handling for worktrees
 - **Git integration**: Shows current branch and working tree status (staged, unstaged, untracked)
 - **Extension status passthrough**: Displays status from other pi extensions (e.g., thinking-steps) that would otherwise be hidden when pi-vitals replaces the built-in footer
 - **Token tracking**: Display input/output/total tokens and cache read/write
 - **Context awareness**: Shows context window usage percentage
 - **Thinking level**: Visual indicator of model reasoning level
-- **Nerd Font support**: Automatic detection with ASCII fallbacks
+- **Nerd Font icons**: Uses Nerd Font glyphs directly
 - **Live updates**: Git status refreshes after every assistant message
 
 ## Installation
@@ -36,78 +36,9 @@ pi -e ./index.ts
 
 ## Configuration
 
-Create `~/.pi/agent/powerline.json` to customize the footer:
+Pi Vitals intentionally uses built-in defaults only. It does not read external config files or provide runtime footer configuration.
 
-```json
-{
-  "leftSegments": [
-    "pi",
-    "separator",
-    "model",
-    "thinking",
-    "ext_status",
-    "separator",
-    "path",
-    "git",
-    "separator",
-    "token_total",
-    "token_in",
-    "token_out",
-    "cache_read",
-    "cache_write"
-  ],
-  "rightSegments": [
-    "separator",
-    "context_pct"
-  ],
-  "icons": {
-    "pi": "π",
-    "model": "◈",
-    "thinking": "🧠",
-    "folder": "📁",
-    "repo": "📦",
-    "git": "⎇",
-    "tokens": "⊛",
-    "input": "↑",
-    "output": "↓",
-    "cacheRead": "↙",
-    "cacheWrite": "↗",
-    "contextPct": "◫",
-    "separator": "|"
-  },
-  "colors": {
-    "pi": "accent",
-    "model": "#d787af",
-    "path": "#00afaf",
-    "git": "success",
-    "gitDirty": "warning",
-    "gitClean": "success",
-    "thinking": "muted",
-    "context": "dim",
-    "contextWarn": "warning",
-    "contextError": "error",
-    "cost": "text",
-    "tokens": "muted",
-    "separator": "dim"
-  },
-  "segmentOptions": {
-    "path": {
-      "mode": "basename"
-    },
-    "git": {
-      "showBranch": true,
-      "showStaged": true,
-      "showUnstaged": true,
-      "showUntracked": true
-    },
-    "context_pct": {
-      "showAutoIcon": false
-    }
-  }
-}
-```
-
-## Available Segments
+## Built-in Segments
 
 | Segment | Description |
 |---------|-------------|
@@ -152,28 +83,7 @@ Colors indicate clean (green) vs dirty (yellow) working tree.
 
 Git status is refreshed after every assistant message and when file-changing tools are used.
 
-## Commands
-
-- `/footer reload` - Reload configuration from disk
-- `/footer debug` - Show current configuration
-
-## Path Modes
-
-The `path` segment supports three modes:
-- `basename` - Just the directory name, or `[repo_name]/relative/path` inside a git repo (default)
-- `abbreviated` - Shortened path with `~` for home
-- `full` - Full path
 
 ## Icons
 
-The extension automatically detects Nerd Font support (via `TERM_PROGRAM` or `GHOSTTY_RESOURCES_DIR`) and uses appropriate icons. You can force Nerd Fonts with:
-
-```bash
-export POWERLINE_NERD_FONTS=1
-```
-
-Or disable with:
-
-```bash
-export POWERLINE_NERD_FONTS=0
-```
+The footer uses Nerd Font icons directly. Use a Nerd Font-enabled terminal for best results.

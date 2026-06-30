@@ -39,43 +39,6 @@ export const NERD_ICONS: IconSet = {
   auto: "\uF0068",      // nf-md-auto_fix
 };
 
-// ASCII/Unicode fallback icons
-export const ASCII_ICONS: IconSet = {
-  pi: "π",
-  model: "◈",
-  folder: "📁",
-  repo: "📦",
-  branch: "⎇",
-  git: "⎇",
-  tokens: "⊛",
-  contextPct: "◫",
-  contextTotal: "◫",
-  cost: "$",
-  cacheRead: "↙",
-  cacheWrite: "↗",
-  input: "↑",
-  output: "↓",
-  thinking: "🧠",
-  separator: "|",
-  auto: "⚡",
-};
-
-// Detect Nerd Font support
-export function hasNerdFonts(): boolean {
-  if (process.env.POWERLINE_NERD_FONTS === "1") return true;
-  if (process.env.POWERLINE_NERD_FONTS === "0") return false;
-  
-  if (process.env.GHOSTTY_RESOURCES_DIR) return true;
-  
-  const term = (process.env.TERM_PROGRAM || "").toLowerCase();
-  const nerdTerms = ["iterm", "wezterm", "kitty", "ghostty", "alacritty"];
-  return nerdTerms.some(t => term.includes(t));
-}
-
-export function getIcons(customIcons?: Partial<IconSet>): IconSet {
-  const baseIcons = hasNerdFonts() ? NERD_ICONS : ASCII_ICONS;
-  if (!customIcons || Object.keys(customIcons).length === 0) {
-    return baseIcons;
-  }
-  return { ...baseIcons, ...customIcons };
+export function getIcons(): IconSet {
+  return NERD_ICONS;
 }

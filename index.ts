@@ -4,7 +4,7 @@ import { visibleWidth, truncateToWidth, type TUI } from "@earendil-works/pi-tui"
 import type { SegmentContext, StatusLineSegmentId } from "./types.js";
 import { renderSegment } from "./segments.js";
 import { getGitStatus, invalidateGitStatus, invalidateGitBranch, invalidateGitRoot, setOnFetchComplete } from "./git-status.js";
-import { getEffectiveConfig, clearUserConfigCache, loadUserConfig } from "./config.js";
+import { LEFT_SEGMENTS, RIGHT_SEGMENTS, SEGMENT_OPTIONS } from "./config.js";
 import { getIcons } from "./icons.js";
 import { getDefaultColors } from "./theme.js";
 
@@ -194,44 +194,9 @@ export default function powerlineFooter(pi: ExtensionAPI) {
     }
   });
 
-  // Command to reload config
-  pi.registerCommand("footer", {
-    description: "Configure footer extension (reload, debug)",
-    handler: async (args, ctx) => {
-      currentCtx = ctx;
-      
-      if (!args || args.trim().toLowerCase() === "reload") {
-        clearUserConfigCache();
-        if (ctx.hasUI) {
-          setupFooter(ctx);
-        }
-        const userConfig = loadUserConfig();
-        if (userConfig) {
-          ctx.ui.notify(`Footer config reloaded`, "info");
-        } else {
-          ctx.ui.notify(`No config file found at ~/.pi/agent/powerline.json`, "warning");
-        }
-        return;
-      }
-
-      if (args.trim().toLowerCase() === "debug") {
-        const cfg = getEffectiveConfig();
-        const lines = [
-          `Left: ${cfg.leftSegments.join(", ")}`,
-          `Right: ${cfg.rightSegments.join(", ")}`,
-          `Custom icons: ${Object.keys(cfg.icons).join(", ") || "none"}`,
-        ];
-        ctx.ui.notify(lines.join(" | "), "info");
-        return;
-      }
-
-      ctx.ui.notify("Usage: /footer [reload|debug]", "info");
-    },
-  });
 
   function buildSegmentContext(ctx: FooterExtensionContext, width: number, theme: Theme): SegmentContext {
-    const effectiveConfig = getEffectiveConfig();
-    const colors = effectiveConfig.colors ?? getDefaultColors();
+    const colors = getDefaultColors();
 
     // Build usage stats from session
     let input = 0, output = 0, cacheRead = 0, cacheWrite = 0, cost = 0;
@@ -287,11 +252,11 @@ export default function powerlineFooter(pi: ExtensionAPI) {
       sessionStartTime,
       git: gitStatus,
       extensionStatuses: footerDataRef?.getExtensionStatuses() ?? new Map(),
-      options: effectiveConfig.segmentOptions ?? {},
+      options: SEGMENT_OPTIONS,
       width,
       theme,
       colors,
-      icons: getIcons(effectiveConfig.icons),
+      icons: getIcons(),
     };
   }
 
@@ -320,13 +285,11 @@ export default function powerlineFooter(pi: ExtensionAPI) {
             return [];
           }
           
-          const effectiveConfig = getEffectiveConfig();
           const segmentCtx = buildSegmentContext(currentCtx, width, theme);
-          
           const content = buildFooterContent(
             segmentCtx,
-            effectiveConfig.leftSegments,
-            effectiveConfig.rightSegments,
+            LEFT_SEGMENTS,
+            RIGHT_SEGMENTS,
             width
           );
           

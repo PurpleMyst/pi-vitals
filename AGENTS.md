@@ -2,7 +2,7 @@
 
 ## Overview
 
-Pi Vitals is a customizable powerline-style footer extension for the [pi coding agent](https://github.com/mariozechner/pi-coding-agent). It replaces pi's built-in footer with a rich, configurable status bar showing git status, model info, token usage, context window percentage, and more.
+Pi Vitals is a powerline-style footer extension for the [pi coding agent](https://github.com/mariozechner/pi-coding-agent). It replaces pi's built-in footer with a fixed status bar showing git status, model info, token usage, context window percentage, and more.
 
 ## Architecture
 
@@ -20,15 +20,15 @@ Provides synchronous repo detection (walking up from `cwd` to find `.git`) and b
 
 ### Configuration: `config.ts`
 
-Loads user config from `~/.pi/agent/powerline.json` with defaults. Cached until explicitly reloaded via `/footer reload`.
+Defines the built-in segment layout and segment options. There is no runtime config-file handling.
 
 ### Theming & Icons: `theme.ts`, `icons.ts`
 
-`theme.ts` maps semantic color names (e.g., `gitDirty`, `contextWarn`) to pi theme colors or hex values. `icons.ts` selects icon sets based on Nerd Font detection.
+`theme.ts` maps semantic color names (e.g., `gitDirty`, `contextWarn`) to pi theme colors or hex values. `icons.ts` provides Nerd Font icons.
 
 ### Types: `types.ts`
 
-Shared TypeScript interfaces: `GitStatus`, `SegmentContext`, `UsageStats`, `RenderedSegment`, user config types, etc.
+Shared TypeScript interfaces: `GitStatus`, `SegmentContext`, `UsageStats`, `RenderedSegment`, etc.
 
 ## Key Design Decisions
 

@@ -106,12 +106,3 @@ export interface RenderedSegment {
   content: string;
   visible: boolean;
 }
-
-// User configuration from powerline.json
-export interface PowerlineUserConfig {
-  leftSegments?: StatusLineSegmentId[];
-  rightSegments?: StatusLineSegmentId[];
-  colors?: ColorScheme;
-  segmentOptions?: StatusLineSegmentOptions;
-  icons?: Partial<IconSet>;
-}
