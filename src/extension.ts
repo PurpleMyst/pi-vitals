@@ -127,6 +127,7 @@ export default function powerlineFooter(pi: ExtensionAPI) {
   // since bash commands or other tools may have changed files on disk
   pi.on("message_end", async (_event, _ctx) => {
     invalidateGitStatus();
+    tuiRef?.requestRender();
   });
 
   // Also invalidate when the agent finishes (covers edge cases)
@@ -205,32 +206,40 @@ export default function powerlineFooter(pi: ExtensionAPI) {
     let thinkingLevelFromSession = "off";
     
     const sessionEvents: SessionEntry[] = ctx.sessionManager?.getBranch?.() ?? [];
+    let lastUserMessageAt: number | undefined;
+    let lastAssistantMessageAt: number | undefined;
     for (const e of sessionEvents) {
       if (e.type === "thinking_level_change" && e.thinkingLevel) {
         thinkingLevelFromSession = e.thinkingLevel;
       }
-      if (e.type === "message" && e.message.role === "assistant") {
-        const m = e.message;
-        if (m.stopReason === "error" || m.stopReason === "aborted") {
-          continue;
-        }
-        input += m.usage.input;
-        output += m.usage.output;
-        cacheRead += m.usage.cacheRead;
-        cacheWrite += m.usage.cacheWrite;
-        cost += m.usage.cost.total;
-        contextTokens = m.usage.input + m.usage.output + m.usage.cacheRead + m.usage.cacheWrite;
-        const latestPromptTokens = m.usage.input + m.usage.cacheRead + m.usage.cacheWrite;
-        latestCacheHitRate = latestPromptTokens > 0
-          ? (m.usage.cacheRead / latestPromptTokens) * 100
-          : undefined;
+      if (e.type !== "message") continue;
+
+      const timestamp = e.message.timestamp;
+      if (e.message.role === "user" && (lastUserMessageAt === undefined || timestamp > lastUserMessageAt)) {
+        lastUserMessageAt = timestamp;
       }
+      if (e.message.role === "assistant" && (lastAssistantMessageAt === undefined || timestamp > lastAssistantMessageAt)) {
+        lastAssistantMessageAt = timestamp;
+      }
+      if (e.message.role !== "assistant") continue;
+
+      const m = e.message;
+      if (m.stopReason === "error" || m.stopReason === "aborted") {
+        continue;
+      }
+      input += m.usage.input;
+      output += m.usage.output;
+      cacheRead += m.usage.cacheRead;
+      cacheWrite += m.usage.cacheWrite;
+      cost += m.usage.cost.total;
+      contextTokens = m.usage.input + m.usage.output + m.usage.cacheRead + m.usage.cacheWrite;
+      const latestPromptTokens = m.usage.input + m.usage.cacheRead + m.usage.cacheWrite;
+      latestCacheHitRate = latestPromptTokens > 0
+        ? (m.usage.cacheRead / latestPromptTokens) * 100
+        : undefined;
     }
 
-    // Calculate context percentage
     const contextWindow = ctx.model?.contextWindow || 0;
-    const contextPercent = contextWindow > 0 ? (contextTokens / contextWindow) * 100 : 0;
-
     // Get git status (cached)
     const gitBranch = footerDataRef?.getGitBranch() ?? null;
     const gitStatus = getGitStatus(gitBranch);
@@ -245,12 +254,14 @@ export default function powerlineFooter(pi: ExtensionAPI) {
       thinkingLevel: thinkingLevelFromSession || "off",
       sessionId: ctx.sessionManager?.getSessionId?.(),
       usageStats: { input, output, cacheRead, cacheWrite, latestCacheHitRate, cost },
-      contextPercent,
+      contextTokens,
       contextWindow,
       autoCompactEnabled: ctx.settingsManager?.getCompactionSettings?.()?.enabled ?? true,
       usingSubscription,
       sessionStartTime,
       git: gitStatus,
+      lastUserMessageAt,
+      lastAssistantMessageAt,
       extensionStatuses: footerDataRef?.getExtensionStatuses() ?? new Map(),
       options: SEGMENT_OPTIONS,
       width,

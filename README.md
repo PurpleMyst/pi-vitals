@@ -11,7 +11,7 @@ A powerline-style footer for the pi coding agent. This extension provides a rich
 - **Git integration**: Shows current branch and working tree status (staged, unstaged, untracked)
 - **Extension status passthrough**: Displays status from other pi extensions (e.g., thinking-steps) that would otherwise be hidden when pi-vitals replaces the built-in footer
 - **Token tracking**: Display input/output/total tokens and cache read/write
-- **Context awareness**: Shows context window usage percentage
+- **Context awareness**: Shows raw context usage (used/window tokens), with a red DUMB ZONE above 100k tokens
 - **Thinking level**: Visual indicator of model reasoning level
 - **Nerd Font icons**: Uses Nerd Font glyphs directly
 - **Live updates**: Git status refreshes after every assistant message
@@ -54,7 +54,8 @@ Pi Vitals intentionally uses built-in defaults only. It does not read external c
 | `cache_read` | Cache read tokens |
 | `cache_write` | Cache write tokens |
 | `cost` | Estimated cost |
-| `context_pct` | Context window usage percentage |
+| `context_pct` | Context window usage (used/window
+| `message_times` | Latest user and assistant message times | tokens) |
 | `context_total` | Total context window size |
 | `separator` | Visual separator icon |
 | `text:...` | Custom text segment (e.g., `text:⚡`) |

@@ -36,6 +36,7 @@ export type StatusLineSegmentId =
   | "cost"
   | "context_pct"
   | "context_total"
+  | "message_times"
   | "cache_read"
   | "cache_write"
   | "cache_hit"
@@ -87,12 +88,14 @@ export interface SegmentContext {
   thinkingLevel: string;
   sessionId: string | undefined;
   usageStats: UsageStats;
-  contextPercent: number;
+  contextTokens: number;
   contextWindow: number;
   autoCompactEnabled: boolean;
   usingSubscription: boolean;
   sessionStartTime: number;
   git: GitStatus;
+  lastUserMessageAt?: number;
+  lastAssistantMessageAt?: number;
   extensionStatuses: ReadonlyMap<string, string>;
   options: StatusLineSegmentOptions;
   width: number;

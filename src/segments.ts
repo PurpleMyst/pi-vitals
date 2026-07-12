@@ -5,6 +5,9 @@ import { fg, rainbow, applyColor } from "./theme.js";
 // Separator between model name and thinking level
 const SEP_DOT = " · ";
 
+// Context usage above this token count is the DUMB ZONE.
+const DUMB_ZONE_THRESHOLD = 100_000;
+
 // Helper to apply semantic color from context
 function color(ctx: SegmentContext, semantic: SemanticColor, text: string): string {
   return fg(ctx.theme, semantic, text, ctx.colors);
@@ -247,18 +250,21 @@ const costSegment = {
 const contextPctSegment = {
   id: "context_pct" as const,
   render(ctx: SegmentContext): RenderedSegment {
-    const pct = ctx.contextPercent;
+    const used = ctx.contextTokens;
     const window = ctx.contextWindow;
     const opts = ctx.options.context_pct ?? {};
 
+    if (!window) return { content: "", visible: false };
+
     const showAuto = opts.showAutoIcon !== false && ctx.icons.auto;
     const autoIcon = ctx.autoCompactEnabled && showAuto ? ` ${ctx.icons.auto}` : "";
-    const text = `${pct.toFixed(1)}%/${formatTokens(window)}${autoIcon}`;
+    const text = `${formatTokens(used)}/${formatTokens(window)}${autoIcon}`;
+    const ratio = used / window;
 
     let content: string;
-    if (pct > 90) {
+    if (used > DUMB_ZONE_THRESHOLD) {
       content = withIcon(ctx.icons.contextPct, color(ctx, "contextError", text));
-    } else if (pct > 70) {
+    } else if (ratio > 0.7) {
       content = withIcon(ctx.icons.contextPct, color(ctx, "contextWarn", text));
     } else {
       content = withIcon(ctx.icons.contextPct, color(ctx, "context", text));
@@ -330,6 +336,27 @@ const extStatusSegment = {
   },
 };
 
+const messageTimesSegment = {
+  id: "message_times" as const,
+  render(ctx: SegmentContext): RenderedSegment {
+    const formatTime = (timestamp: number) => new Date(timestamp).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    const parts: string[] = [];
+    if (ctx.lastUserMessageAt !== undefined) {
+      parts.push(`U ${formatTime(ctx.lastUserMessageAt)}`);
+    }
+    if (ctx.lastAssistantMessageAt !== undefined) {
+      parts.push(`A ${formatTime(ctx.lastAssistantMessageAt)}`);
+    }
+    if (parts.length === 0) return { content: "", visible: false };
+    return { content: applyColor(ctx.theme, "dim", parts.join(" ")), visible: true };
+  },
+};
+
 const separatorSegment = {
   id: "separator" as const,
   render(ctx: SegmentContext): RenderedSegment {
@@ -359,6 +386,7 @@ const SEGMENTS = {
   token_total: tokenTotalSegment,
   cost: costSegment,
   context_pct: contextPctSegment,
+  message_times: messageTimesSegment,
   context_total: contextTotalSegment,
   cache_read: cacheReadSegment,
   cache_write: cacheWriteSegment,
