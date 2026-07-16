@@ -20,6 +20,8 @@ export const LEFT_SEGMENTS: StatusLineSegmentId[] = [
 
 export const RIGHT_SEGMENTS: StatusLineSegmentId[] = [
   "separator",
+  "message_times",
+  "separator",
   "context_pct"
 ];
 
