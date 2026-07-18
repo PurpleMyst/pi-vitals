@@ -344,6 +344,7 @@ const messageTimesSegment = {
       minute: "2-digit",
       second: "2-digit",
       hour12: false,
+      timeZone: ctx.options.message_times?.timeZone,
     });
     const parts: string[] = [];
     if (ctx.lastUserMessageAt !== undefined) {

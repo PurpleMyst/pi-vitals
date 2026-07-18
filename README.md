@@ -38,6 +38,8 @@ pi -e ./dist/extension.js
 
 Pi Vitals intentionally uses built-in defaults only. It does not read external config files or provide runtime footer configuration.
 
+The `message_times` segment uses the IANA timezone configured in `src/config.ts` (`Europe/Rome` by default). Change `SEGMENT_OPTIONS.message_times.timeZone` to another IANA name and rebuild `dist/extension.js` to use a different timezone. Daylight-saving transitions are handled automatically.
+
 ## Built-in Segments
 
 | Segment | Description |

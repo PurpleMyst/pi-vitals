@@ -60,6 +60,7 @@ export interface StatusLineSegmentOptions {
   };
   thinking?: { prefix?: string };
   context_pct?: { showAutoIcon?: boolean };
+  message_times?: { timeZone?: string };
 }
 
 // Git status data

@@ -34,5 +34,6 @@ export const SEGMENT_OPTIONS: StatusLineSegmentOptions = {
     showUnstaged: true,
     showUntracked: true
   },
-  context_pct: { showAutoIcon: false }
+  context_pct: { showAutoIcon: false },
+  message_times: { timeZone: "Europe/Rome" }
 };
