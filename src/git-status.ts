@@ -209,8 +209,11 @@ export function getGitRepoName(): string | null {
   if (info.worktreeDir === info.mainRepoRoot) {
     return basename(info.worktreeDir);
   }
-  // Worktree: name comes from the bare repo directory
-  return basename(info.commonGitDir);
+  // Worktree: if the common git dir is a `.git` subdirectory (regular repo),
+  // name the repo after the main repo root; otherwise it's a bare repo dir.
+  return basename(info.commonGitDir) === ".git"
+    ? basename(info.mainRepoRoot)
+    : basename(info.commonGitDir);
 }
 
 /**
